@@ -1,0 +1,17 @@
+# Internal documentation and secrets
+.internal/
+internal/
+
+# Dependencies
+node_modules/
+.venv/
+env/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+out/
