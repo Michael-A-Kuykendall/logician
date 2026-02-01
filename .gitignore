@@ -2,6 +2,9 @@
 .internal/
 internal/
 
+# Rust build outputs
+target/
+
 # Dependencies
 node_modules/
 .venv/

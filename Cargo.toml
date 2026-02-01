@@ -1,0 +1,39 @@
+[workspace]
+
+[package]
+name = "logician"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Type-safe SMT solver driver with fluent Term API, multi-solver fallback, and process watchdog"
+keywords = ["smt", "solver", "z3", "satisfiability", "formal-verification"]
+categories = ["development-tools", "mathematics", "science"]
+repository = "https://github.com/Michael-A-Kuykendall/logician"
+homepage = "https://github.com/Michael-A-Kuykendall/logician"
+documentation = "https://docs.rs/logician"
+readme = "README.md"
+authors = ["Michael A. Kuykendall <michaelallenkuykendall@gmail.com>"]
+
+[dependencies]
+thiserror = "1.0"
+lazy_static = "1.4"
+kill_tree = "0.1"
+smallvec = "1"
+
+[dependencies.tokio]
+version = "1"
+features = ["full"]
+optional = true
+
+[dev-dependencies]
+criterion = "0.5"
+trybuild = "1.0"
+proptest = "1.0"
+
+[features]
+default = []
+tokio = ["dep:tokio"]
+
+[[bench]]
+name = "smts"
+harness = false
