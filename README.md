@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Michael-A-Kuykendall/logician/main/assets/logician-logo.png" alt="Logician Logo" width="300">
+  <img src="https://raw.githubusercontent.com/Michael-A-Kuykendall/logician/master/assets/logician-logo.png" alt="Logician Logo" width="300">
 </p>
 
 <h1 align="center">Logician</h1>
