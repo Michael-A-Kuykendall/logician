@@ -31,10 +31,28 @@
 //! assert_eq!(resp, Response::Unknown);
 //! ```
 
+/// An S-expression value for response payloads.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SExpr {
+    /// A symbol
+    Symbol(String),
+    /// A numeric literal
+    Numeral(i64),
+    /// A string literal
+    String(String),
+    /// A keyword
+    Keyword(String),
+    /// A list of S-expressions
+    List(Vec<SExpr>),
+}
+
 /// Solver response variants.
 ///
 /// This enum represents all possible responses from an SMT solver.
+/// It is `#[non_exhaustive]` — new variants may be added without a
+/// breaking change, so match arms must include a wildcard.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum Response {
     /// The assertions are satisfiable
     Sat,
@@ -46,6 +64,15 @@ pub enum Response {
     Model(Vec<(String, Value)>),
     /// Solver returned an error
     Error(String),
+    /// Result of `(get-value ...)` — a list of value S-expressions
+    Eval(Vec<SExpr>),
+    /// Result of `(get-info :keyword)` — the info value as an S-expression
+    GetInfo {
+        /// The keyword requested
+        keyword: String,
+        /// The value returned by the solver
+        value: Box<SExpr>,
+    },
 }
 
 /// Value types that can appear in solver models.

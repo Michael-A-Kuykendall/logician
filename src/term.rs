@@ -118,6 +118,15 @@ pub enum LogicError {
     /// Invalid term construction
     #[error("invalid term: {0}")]
     InvalidTerm(String),
+
+    /// Pop beyond scope depth (underflow)
+    #[error("scope underflow: depth={depth}, requested pop={requested}")]
+    ScopeUnderflow {
+        /// Current scope depth
+        depth: u32,
+        /// Number of scopes requested to pop
+        requested: u32,
+    },
 }
 
 // # Spell: TermEnum
@@ -308,7 +317,9 @@ impl Term {
             )
         } else {
             let mut iter = others.into_iter();
-            let second = iter.next().unwrap();
+            let second = iter
+                .next()
+                .expect("and_many: others non-empty branch guarantees at least one element");
             let rest: SmallVec<[Box<Term>; 2]> = iter.map(Box::new).collect();
             Term::And(And2(Box::new(self), Box::new(second)), rest)
         }
@@ -337,7 +348,9 @@ impl Term {
             )
         } else {
             let mut iter = others.into_iter();
-            let second = iter.next().unwrap();
+            let second = iter
+                .next()
+                .expect("or_many: others non-empty branch guarantees at least one element");
             let rest: SmallVec<[Box<Term>; 2]> = iter.map(Box::new).collect();
             Term::Or(Or2(Box::new(self), Box::new(second)), rest)
         }

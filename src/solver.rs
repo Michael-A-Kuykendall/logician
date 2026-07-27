@@ -55,6 +55,8 @@ pub struct Solver {
     pub config: Config,
     /// The underlying process driver
     pub driver: Driver,
+    /// Current push/pop scope depth (0 = base level)
+    scope_depth: u32,
 }
 
 impl Solver {
@@ -62,7 +64,11 @@ impl Solver {
     #[cfg(not(feature = "tokio"))]
     pub fn new(config: Config) -> Result<Self, LogicError> {
         let driver = launch(&config)?;
-        let mut solver = Solver { config, driver };
+        let mut solver = Solver {
+            config,
+            driver,
+            scope_depth: 0,
+        };
         solver.send("(set-option :print-success true)")?;
         solver.send("(set-logic ALL)")?;
         Ok(solver)
@@ -72,7 +78,11 @@ impl Solver {
     #[cfg(feature = "tokio")]
     pub async fn new(config: Config) -> Result<Self, LogicError> {
         let driver = launch(&config).await?;
-        let mut solver = Solver { config, driver };
+        let mut solver = Solver {
+            config,
+            driver,
+            scope_depth: 0,
+        };
         solver.send("(set-option :print-success true)").await?;
         solver.send("(set-logic ALL)").await?;
         Ok(solver)
@@ -159,27 +169,113 @@ impl Solver {
         parse(&self.query("(get-model)").await?)
     }
 
+    /// Report current push/pop scope depth.
+    pub fn scope_depth(&self) -> u32 {
+        self.scope_depth
+    }
+
     /// Push scope
     #[cfg(not(feature = "tokio"))]
     pub fn push(&mut self, n: usize) -> Result<(), LogicError> {
-        self.send(&format!("(push {})", n))
+        let n = n as u32;
+        self.send(&format!("(push {})", n))?;
+        self.scope_depth += n;
+        Ok(())
     }
 
     /// Push scope (async version)
     #[cfg(feature = "tokio")]
     pub async fn push(&mut self, n: usize) -> Result<(), LogicError> {
-        self.send(&format!("(push {})", n)).await
+        let n = n as u32;
+        self.send(&format!("(push {})", n)).await?;
+        self.scope_depth += n;
+        Ok(())
     }
 
     /// Pop scope
     #[cfg(not(feature = "tokio"))]
     pub fn pop(&mut self, n: usize) -> Result<(), LogicError> {
-        self.send(&format!("(pop {})", n))
+        let n = n as u32;
+        if n > self.scope_depth {
+            return Err(LogicError::ScopeUnderflow {
+                depth: self.scope_depth,
+                requested: n,
+            });
+        }
+        self.send(&format!("(pop {})", n))?;
+        self.scope_depth -= n;
+        Ok(())
     }
 
     /// Pop scope (async version)
     #[cfg(feature = "tokio")]
     pub async fn pop(&mut self, n: usize) -> Result<(), LogicError> {
-        self.send(&format!("(pop {})", n)).await
+        let n = n as u32;
+        if n > self.scope_depth {
+            return Err(LogicError::ScopeUnderflow {
+                depth: self.scope_depth,
+                requested: n,
+            });
+        }
+        self.send(&format!("(pop {})", n)).await?;
+        self.scope_depth -= n;
+        Ok(())
+    }
+
+    /// Assert a term with a name for unsat-core tracking.
+    ///
+    /// The named assertion can be referenced in unsat-core output:
+    /// `(assert (! term :named label))`
+    #[cfg(not(feature = "tokio"))]
+    pub fn assert_named(&mut self, term: &Term, label: &str) -> Result<(), LogicError> {
+        self.send(&format!("(assert (! {} :named {}))", term, label))
+    }
+
+    /// Assert a term with a name for unsat-core tracking (async).
+    #[cfg(feature = "tokio")]
+    pub async fn assert_named(&mut self, term: &Term, label: &str) -> Result<(), LogicError> {
+        self.send(&format!("(assert (! {} :named {}))", term, label))
+            .await
+    }
+
+    /// Get the unsat core (list of named assertion labels) after an UNSAT result.
+    #[cfg(not(feature = "tokio"))]
+    pub fn get_unsat_core(&mut self) -> Result<Vec<String>, LogicError> {
+        let raw = self.query("(get-unsat-core)")?;
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed == "()" {
+            return Ok(Vec::new());
+        }
+        // Parse S-expression list: (label1 label2 ...)
+        let inner = trimmed
+            .strip_prefix('(')
+            .and_then(|s| s.strip_suffix(')'))
+            .unwrap_or(trimmed);
+        let labels: Vec<String> = inner
+            .split_whitespace()
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+        Ok(labels)
+    }
+
+    /// Get the unsat core (async).
+    #[cfg(feature = "tokio")]
+    pub async fn get_unsat_core(&mut self) -> Result<Vec<String>, LogicError> {
+        let raw = self.query("(get-unsat-core)").await?;
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed == "()" {
+            return Ok(Vec::new());
+        }
+        let inner = trimmed
+            .strip_prefix('(')
+            .and_then(|s| s.strip_suffix(')'))
+            .unwrap_or(trimmed);
+        let labels: Vec<String> = inner
+            .split_whitespace()
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+        Ok(labels)
     }
 }

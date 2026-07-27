@@ -68,7 +68,10 @@ lazy_static! {
 /// // Now run code that triggers invariants...
 /// ```
 pub fn clear_invariant_log() {
-    INVARIANT_TAGS.lock().unwrap().clear();
+    INVARIANT_TAGS
+        .lock()
+        .expect("invariant mutex poisoned")
+        .clear();
 }
 
 /// Get a copy of all recorded invariant tags.
@@ -85,7 +88,10 @@ pub fn clear_invariant_log() {
 /// println!("Invariants checked: {:?}", tags);
 /// ```
 pub fn get_invariant_tags() -> HashSet<String> {
-    INVARIANT_TAGS.lock().unwrap().clone()
+    INVARIANT_TAGS
+        .lock()
+        .expect("invariant mutex poisoned")
+        .clone()
 }
 
 /// Assert an invariant condition, recording the tag and panicking on failure.
@@ -118,7 +124,7 @@ macro_rules! assert_invariant {
     ($cond:expr, $msg:expr, $tag:expr) => {{
         $crate::invariant::INVARIANT_TAGS
             .lock()
-            .unwrap()
+            .expect("invariant mutex poisoned — a prior assert_invariant! panic left the lock poisoned")
             .insert($tag.to_string());
         if !$cond {
             panic!("invariant violation [{}]: {}", $tag, $msg);

@@ -55,3 +55,4 @@ pub mod multisolver;
 pub mod parser;
 pub mod solver;
 pub mod term;
+pub(crate) mod tokenizer;
