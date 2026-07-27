@@ -31,9 +31,9 @@
 //! println!("{}", formula);
 //! ```
 
+use smallvec::SmallVec;
 use std::time::Duration;
 use thiserror::Error;
-use smallvec::SmallVec;
 
 /// SMT sort (type) for terms.
 ///
@@ -85,36 +85,36 @@ impl std::fmt::Display for Sort {
 pub enum LogicError {
     /// Parse error with line/column information
     #[error("parse error at {line}:{col}: {msg}")]
-    Parse { 
+    Parse {
         /// Line number (1-indexed)
-        line: usize, 
+        line: usize,
         /// Column number (1-indexed)
-        col: usize, 
+        col: usize,
         /// Error description
-        msg: String 
+        msg: String,
     },
-    
+
     /// Solver returned an error or failed to respond
     #[error("solver error: {0}")]
     Solver(String),
-    
+
     /// Solver exceeded configured timeout
     #[error("timeout after {0:?}")]
     Timeout(Duration),
-    
+
     /// I/O error communicating with solver process
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     /// Term sort mismatch (e.g., Bool passed where Int expected)
     #[error("sort mismatch: expected {expected}, got {got}")]
-    SortMismatch { 
+    SortMismatch {
         /// The expected sort
-        expected: Sort, 
+        expected: Sort,
         /// The actual sort
-        got: Sort 
+        got: Sort,
     },
-    
+
     /// Invalid term construction
     #[error("invalid term: {0}")]
     InvalidTerm(String),
@@ -131,9 +131,9 @@ pub enum LogicError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct And2(
     /// First conjunct (required)
-    pub Box<Term>, 
+    pub Box<Term>,
     /// Second conjunct (required)
-    pub Box<Term>
+    pub Box<Term>,
 );
 
 /// Wrapper type enforcing minimum 2 terms for [`Term::Or`].
@@ -144,9 +144,9 @@ pub struct And2(
 #[derive(Debug, Clone, PartialEq)]
 pub struct Or2(
     /// First disjunct (required)
-    pub Box<Term>, 
+    pub Box<Term>,
     /// Second disjunct (required)
-    pub Box<Term>
+    pub Box<Term>,
 );
 
 /// Immutable AST for SMT terms with automatic sort inference.
@@ -219,7 +219,7 @@ impl Term {
 
 impl Term {
     /// Logical NOT (self must be Bool)
-    #[allow(clippy::should_implement_trait)]  // We want `.not()` as a fluent builder, not std::ops::Not
+    #[allow(clippy::should_implement_trait)] // We want `.not()` as a fluent builder, not std::ops::Not
     pub fn not(self) -> Term {
         crate::assert_invariant!(
             self.sort() == Sort::Bool,
@@ -228,7 +228,7 @@ impl Term {
         );
         Term::Not(Box::new(self))
     }
-    
+
     /// Logical AND (both must be Bool)
     pub fn and(self, other: Term) -> Term {
         crate::assert_invariant!(
@@ -243,7 +243,7 @@ impl Term {
         );
         Term::And(And2(Box::new(self), Box::new(other)), SmallVec::new())
     }
-    
+
     /// Logical OR (both must be Bool)
     pub fn or(self, other: Term) -> Term {
         crate::assert_invariant!(
@@ -258,7 +258,7 @@ impl Term {
         );
         Term::Or(Or2(Box::new(self), Box::new(other)), SmallVec::new())
     }
-    
+
     /// Equality (both must have same sort)
     pub fn eq(self, other: Term) -> Term {
         crate::assert_invariant!(
@@ -268,7 +268,7 @@ impl Term {
         );
         Term::Eq(Box::new(self), Box::new(other))
     }
-    
+
     /// Implication: self -> other (both must be Bool)
     pub fn implies(self, other: Term) -> Term {
         crate::assert_invariant!(
@@ -284,7 +284,7 @@ impl Term {
         // a -> b  ===  !a | b
         self.not().or(other)
     }
-    
+
     /// AND of self with multiple others (all must be Bool)
     pub fn and_many(self, others: Vec<Term>) -> Term {
         crate::assert_invariant!(
@@ -299,10 +299,13 @@ impl Term {
                 "term_and_many_sort_other"
             );
         }
-        
+
         if others.is_empty() {
             // Just self, wrap in And with a true literal
-            Term::And(And2(Box::new(self), Box::new(Term::Bool(true))), SmallVec::new())
+            Term::And(
+                And2(Box::new(self), Box::new(Term::Bool(true))),
+                SmallVec::new(),
+            )
         } else {
             let mut iter = others.into_iter();
             let second = iter.next().unwrap();
@@ -310,7 +313,7 @@ impl Term {
             Term::And(And2(Box::new(self), Box::new(second)), rest)
         }
     }
-    
+
     /// OR of self with multiple others (all must be Bool)
     pub fn or_many(self, others: Vec<Term>) -> Term {
         crate::assert_invariant!(
@@ -325,10 +328,13 @@ impl Term {
                 "term_or_many_sort_other"
             );
         }
-        
+
         if others.is_empty() {
             // Just self, wrap in Or with a false literal
-            Term::Or(Or2(Box::new(self), Box::new(Term::Bool(false))), SmallVec::new())
+            Term::Or(
+                Or2(Box::new(self), Box::new(Term::Bool(false))),
+                SmallVec::new(),
+            )
         } else {
             let mut iter = others.into_iter();
             let second = iter.next().unwrap();
@@ -370,4 +376,3 @@ impl std::fmt::Display for Term {
         }
     }
 }
-

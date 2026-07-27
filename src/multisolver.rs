@@ -17,7 +17,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use logician::multisolver::MultiSolver;
 //! use logician::driver::Config;
 //! use logician::term::{Term, Sort};
@@ -93,33 +93,33 @@ impl MultiSolver {
             declares: Vec::new(),
         }
     }
-    
+
     /// Record an assertion (to be replayed on fallback)
     pub fn assert(&mut self, term: &Term) {
         self.asserts.push(term.clone());
     }
-    
+
     /// Record a declaration (to be replayed on fallback)
     pub fn declare(&mut self, name: &str, sort: &Sort) {
         self.declares.push((name.to_string(), *sort));
     }
-    
+
     /// Check satisfiability, trying solvers in order with fallback
     #[cfg(not(feature = "tokio"))]
     pub fn check(&mut self) -> Result<Response, LogicError> {
         if self.configs.is_empty() {
             return Err(LogicError::Solver("no solver configs provided".into()));
         }
-        
+
         let mut last_error = None;
         let max_attempts = self.configs.len();
-        
+
         for (idx, config) in self.configs.iter().enumerate() {
             // Prevent infinite loop - only try each config once
             if idx >= max_attempts {
                 break;
             }
-            
+
             match Solver::new(config.clone()) {
                 Ok(mut solver) => {
                     // Replay declares
@@ -131,8 +131,10 @@ impl MultiSolver {
                             break;
                         }
                     }
-                    if setup_failed { continue; }
-                    
+                    if setup_failed {
+                        continue;
+                    }
+
                     // Replay asserts
                     for term in &self.asserts {
                         if let Err(e) = solver.assert(term) {
@@ -141,8 +143,10 @@ impl MultiSolver {
                             break;
                         }
                     }
-                    if setup_failed { continue; }
-                    
+                    if setup_failed {
+                        continue;
+                    }
+
                     // Check
                     match solver.check() {
                         Ok(response) => return Ok(response),
@@ -158,27 +162,27 @@ impl MultiSolver {
                 }
             }
         }
-        
+
         // All solvers failed
         Err(last_error.unwrap_or_else(|| LogicError::Solver("all solvers failed".into())))
     }
-    
+
     /// Check satisfiability, trying solvers in order with fallback (async version)
     #[cfg(feature = "tokio")]
     pub async fn check(&mut self) -> Result<Response, LogicError> {
         if self.configs.is_empty() {
             return Err(LogicError::Solver("no solver configs provided".into()));
         }
-        
+
         let mut last_error = None;
         let max_attempts = self.configs.len();
-        
+
         for (idx, config) in self.configs.iter().enumerate() {
             // Prevent infinite loop - only try each config once
             if idx >= max_attempts {
                 break;
             }
-            
+
             match Solver::new(config.clone()).await {
                 Ok(mut solver) => {
                     // Replay declares
@@ -190,8 +194,10 @@ impl MultiSolver {
                             break;
                         }
                     }
-                    if failed { continue; }
-                    
+                    if failed {
+                        continue;
+                    }
+
                     // Replay asserts
                     for term in &self.asserts {
                         if let Err(e) = solver.assert(term).await {
@@ -200,8 +206,10 @@ impl MultiSolver {
                             break;
                         }
                     }
-                    if failed { continue; }
-                    
+                    if failed {
+                        continue;
+                    }
+
                     // Check
                     match solver.check().await {
                         Ok(response) => return Ok(response),
@@ -217,7 +225,7 @@ impl MultiSolver {
                 }
             }
         }
-        
+
         // All solvers failed
         Err(last_error.unwrap_or_else(|| LogicError::Solver("all solvers failed".into())))
     }

@@ -4,7 +4,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use logician::driver::Config;
 use logician::parser::parse;
-use logician::term::{Term, Sort, And2, Or2};
+use logician::term::{And2, Or2, Sort, Term};
 use smallvec::smallvec;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ fn bench_term_construction(c: &mut Criterion) {
             black_box(t1.and(t2).and(t3))
         })
     });
-    
+
     c.bench_function("term_or_chain", |b| {
         b.iter(|| {
             let t1 = Term::Bool(true);
@@ -26,7 +26,7 @@ fn bench_term_construction(c: &mut Criterion) {
             black_box(t1.or(t2).or(t3))
         })
     });
-    
+
     c.bench_function("term_nested_not", |b| {
         b.iter(|| {
             let t = Term::Bool(true);
@@ -50,26 +50,18 @@ fn bench_serialization(c: &mut Criterion) {
             ),
             smallvec![Box::new(Term::Bool(true))],
         );
-        
-        b.iter(|| {
-            black_box(format!("{}", complex))
-        })
+
+        b.iter(|| black_box(format!("{}", complex)))
     });
 }
 
 fn bench_parsing(c: &mut Criterion) {
-    c.bench_function("parse_sat", |b| {
-        b.iter(|| {
-            black_box(parse("sat"))
-        })
-    });
-    
+    c.bench_function("parse_sat", |b| b.iter(|| black_box(parse("sat"))));
+
     c.bench_function("parse_model", |b| {
         let model = r#"(define-fun x () Int 42)
 (define-fun y () Bool true)"#;
-        b.iter(|| {
-            black_box(parse(model))
-        })
+        b.iter(|| black_box(parse(model)))
     });
 }
 

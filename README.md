@@ -51,7 +51,7 @@ SMT solvers are powerful. Getting them into your Rust project shouldn't require 
 |----------|-------|-------------|--------------|----------|
 | **FFI Bindings** | C++ toolchain, platform pain | Yes | Manual | Manual |
 | **String Builders** | Easy | None—pray your strings parse | Manual | Manual |
-| **Logician** | `cargo add logician` | **Yes, with clear panics** | **Built-in** | **Built-in** |
+| **Logician** | `cargo add logician` | **Runtime: panics on sort mismatch** | **Built-in** | **Built-in** |
 
 **What you get:**
 
@@ -122,7 +122,7 @@ fn main() -> Result<(), logician::term::LogicError> {
 
 ## Features
 
-### Type-Safe Terms
+### Sort-Checked Terms (runtime, not compile-time)
 
 ```rust
 let a = Term::Var("a".into(), Sort::Bool);
@@ -190,26 +190,18 @@ let result = solver.check().await?;
 
 ## Philosophy
 
-### The Invariant Superhighway
+### Runtime Invariants (not compile-time type safety)
 
-Logician doesn't just check for errors—it enforces architectural guarantees.
+Logician enforces sort correctness through runtime invariants (`assert_invariant!`)
+instead of type-level machinery:
 
-Every critical code path has runtime invariants that:
+1. **Records** a unique tag for every sort check (for auditing)
+2. **Panics** on violation (no silent corruption)
+3. **Audits** coverage — `tests/mod.rs::c_invariant_audit` enumerates every tag
+   and fails the build if any invariant stops being exercised
 
-1. **Record** what was checked (for auditing)
-2. **Panic immediately** on violations (no silent corruption)
-3. **Enable contract testing** (verify the guards are watching)
-
-```rust
-// In code
-assert_invariant!(term.sort() == Sort::Bool, "and requires Bool", "term_and_sort");
-
-// In tests
-let tags = get_invariant_tags();
-assert!(tags.contains("term_and_sort"));
-```
-
-This is **Predictive Property-Based Testing (PPT)**—the same methodology used in high-reliability systems.
+This is runtime checking: a sort mismatch panics when the term is *built*, not at
+compile time. The trade-off is simplicity over compile-time guarantees.
 
 ### What Logician Is
 

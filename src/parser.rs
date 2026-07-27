@@ -85,14 +85,18 @@ impl<'a> Parser<'a> {
     fn new(input: &'a str) -> Self {
         Parser {
             input,
-            pos: Pos { line: 1, col: 1, offset: 0 },
+            pos: Pos {
+                line: 1,
+                col: 1,
+                offset: 0,
+            },
         }
     }
-    
+
     fn peek(&self) -> Option<char> {
         self.input[self.pos.offset..].chars().next()
     }
-    
+
     fn advance(&mut self) {
         if let Some(c) = self.peek() {
             self.pos.offset += c.len_utf8();
@@ -104,7 +108,7 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     fn skip_whitespace(&mut self) {
         while let Some(c) = self.peek() {
             if c.is_whitespace() {
@@ -114,7 +118,7 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     fn error(&self, msg: &str) -> LogicError {
         LogicError::Parse {
             line: self.pos.line,
@@ -122,7 +126,7 @@ impl<'a> Parser<'a> {
             msg: msg.to_string(),
         }
     }
-    
+
     fn parse_symbol(&mut self) -> Result<String, LogicError> {
         self.skip_whitespace();
         let start = self.pos.offset;
@@ -140,7 +144,7 @@ impl<'a> Parser<'a> {
             Ok(self.input[start..end].to_string())
         }
     }
-    
+
     fn parse_number(&mut self) -> Result<i64, LogicError> {
         self.skip_whitespace();
         let start = self.pos.offset;
@@ -156,9 +160,10 @@ impl<'a> Parser<'a> {
         }
         let end = self.pos.offset;
         let s = &self.input[start..end];
-        s.parse().map_err(|_| self.error(&format!("invalid number: {}", s)))
+        s.parse()
+            .map_err(|_| self.error(&format!("invalid number: {}", s)))
     }
-    
+
     fn parse_sexp(&mut self) -> Result<Sexp, LogicError> {
         self.skip_whitespace();
         match self.peek() {
@@ -175,21 +180,23 @@ impl<'a> Parser<'a> {
                 }
                 Ok(Sexp::List(items))
             }
-            Some(c) if c.is_ascii_digit() => {
-                Ok(Sexp::Num(self.parse_number()?))
-            }
+            Some(c) if c.is_ascii_digit() => Ok(Sexp::Num(self.parse_number()?)),
             Some('-') => {
                 // Check if next char is a digit (negative number) or not (symbol)
                 let remaining = &self.input[self.pos.offset..];
-                if remaining.len() > 1 && remaining.chars().nth(1).map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                if remaining.len() > 1
+                    && remaining
+                        .chars()
+                        .nth(1)
+                        .map(|c| c.is_ascii_digit())
+                        .unwrap_or(false)
+                {
                     Ok(Sexp::Num(self.parse_number()?))
                 } else {
                     Ok(Sexp::Sym(self.parse_symbol()?))
                 }
             }
-            Some(_) => {
-                Ok(Sexp::Sym(self.parse_symbol()?))
-            }
+            Some(_) => Ok(Sexp::Sym(self.parse_symbol()?)),
             None => Err(self.error("unexpected EOF")),
         }
     }
@@ -249,18 +256,18 @@ pub fn parse(input: &str) -> Result<Response, LogicError> {
     if trimmed == "unknown" {
         return Ok(Response::Unknown);
     }
-    
+
     // Try parsing as multiple S-expressions (handles multi-line define-fun)
     if let Ok(bindings) = try_parse_multiple_sexps(input) {
         if !bindings.is_empty() {
             return Ok(Response::Model(bindings));
         }
     }
-    
+
     // Parse as single S-expression
     let mut parser = Parser::new(input);
     let sexp = parser.parse_sexp()?;
-    
+
     // Handle (sat), (unsat), (unknown)
     if let Sexp::List(items) = &sexp {
         if items.len() == 1 {
@@ -273,7 +280,7 @@ pub fn parse(input: &str) -> Result<Response, LogicError> {
                 }
             }
         }
-        
+
         // Handle (error "message")
         if !items.is_empty() {
             if let Some("error") = items[0].as_sym() {
@@ -285,7 +292,7 @@ pub fn parse(input: &str) -> Result<Response, LogicError> {
                 return Ok(Response::Error(msg));
             }
         }
-        
+
         // Handle (model ...) - contains define-fun declarations
         if !items.is_empty() {
             if let Some("model") = items[0].as_sym() {
@@ -293,7 +300,7 @@ pub fn parse(input: &str) -> Result<Response, LogicError> {
             }
         }
     }
-    
+
     Err(LogicError::Parse {
         line: 1,
         col: 1,
@@ -304,7 +311,7 @@ pub fn parse(input: &str) -> Result<Response, LogicError> {
 fn try_parse_multiple_sexps(input: &str) -> Result<Vec<(String, Value)>, LogicError> {
     let mut parser = Parser::new(input);
     let mut bindings = Vec::new();
-    
+
     loop {
         parser.skip_whitespace();
         if parser.peek().is_none() {
@@ -329,7 +336,7 @@ fn try_parse_multiple_sexps(input: &str) -> Result<Vec<(String, Value)>, LogicEr
             }
         }
     }
-    
+
     Ok(bindings)
 }
 
@@ -365,13 +372,11 @@ fn parse_define_fun(sexp: &Sexp) -> Result<(String, Value), LogicError> {
 
 fn parse_value(sexp: &Sexp) -> Result<Value, LogicError> {
     match sexp {
-        Sexp::Sym(s) => {
-            match s.as_str() {
-                "true" => Ok(Value::Bool(true)),
-                "false" => Ok(Value::Bool(false)),
-                _ => Ok(Value::Unsupported(s.clone())),
-            }
-        }
+        Sexp::Sym(s) => match s.as_str() {
+            "true" => Ok(Value::Bool(true)),
+            "false" => Ok(Value::Bool(false)),
+            _ => Ok(Value::Unsupported(s.clone())),
+        },
         Sexp::Num(n) => Ok(Value::Int(*n)),
         Sexp::List(items) => {
             // Handle (- n) for negative numbers

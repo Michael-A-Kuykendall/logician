@@ -17,7 +17,6 @@ authors = ["Michael A. Kuykendall <michaelallenkuykendall@gmail.com>"]
 [dependencies]
 thiserror = "1.0"
 lazy_static = "1.4"
-kill_tree = "0.1"
 smallvec = "1"
 
 [dependencies.tokio]

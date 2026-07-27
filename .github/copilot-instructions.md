@@ -37,7 +37,8 @@ This project follows the **Sorcery** design doctrine where every behavior is loc
 
 ### Spell File Location
 
-The complete spell definitions are in `.internal/logician.spell`.
+The `# Spell:` notation is an authoring aid used by the maintainer to map claims
+to tests; it is not required to use or contribute to the crate.
 
 ---
 
@@ -79,7 +80,8 @@ cargo test -- --test-threads=1
 cargo tarpaulin --skip-clean --ignore-tests -- --test-threads=1
 ```
 
-**Current coverage: 90.72%** (342/377 lines)
+**Coverage:** tracked in CI via `cargo tarpaulin`; do not assert a fixed
+percentage in documentation.
 
 ---
 
@@ -98,9 +100,7 @@ src/
 tests/
 └── mod.rs         # All tests organized by spell proof obligations
 
-.internal/
-├── logician.spell # Complete Sorcery spell definitions
-└── ppt_invariant_guide.md # PPT testing methodology
+(No additional runtime files are required; the crate is self-contained.)
 ```
 
 ---

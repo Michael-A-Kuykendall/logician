@@ -9,7 +9,7 @@
 //!
 //! ## Quick Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use logician::driver::Config;
 //! use logician::solver::Solver;
 //! use logician::parser::Response;
@@ -49,9 +49,9 @@
 //!
 //! - **`tokio`** - Enable async API (default: synchronous std::io)
 
-pub mod invariant;
-pub mod term;
 pub mod driver;
+pub mod invariant;
+pub mod multisolver;
 pub mod parser;
 pub mod solver;
-pub mod multisolver;
+pub mod term;

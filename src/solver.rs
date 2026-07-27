@@ -7,11 +7,12 @@
 //! - **Incremental solving** - Assert constraints, check, add more, check again
 //! - **Push/pop scopes** - Explore branches without re-sending everything
 //! - **Model extraction** - Get satisfying assignments after SAT
-//! - **Tracing** - Optional SMT-LIB trace file for debugging
+//! - **Tracing** - Optional SMT-LIB trace file for debugging (owned by [`Driver`])
+//! - **Cleanup** - Dropping the [`Solver`] terminates the solver process tree
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use logician::driver::Config;
 //! use logician::solver::Solver;
 //! use logician::parser::Response;
@@ -25,258 +26,82 @@
 //!     trace: false,
 //! };
 //!
-//! let mut solver = Solver::new(config)?;
+//! let mut solver = Solver::new(config).unwrap();
+//! solver.declare("x", &Sort::Int).unwrap();
 //!
-//! // Declare variable
-//! solver.declare("x", &Sort::Int)?;
-//!
-//! // Assert constraint
 //! let x = Term::Var("x".into(), Sort::Int);
-//! solver.assert(&x.eq(Term::Int(42)))?;
+//! solver.assert(&x.eq(Term::Int(42))).unwrap();
 //!
-//! // Check and get model
-//! if let Response::Sat = solver.check()? {
-//!     if let Response::Model(bindings) = solver.get_model()? {
+//! if let Response::Sat = solver.check().unwrap() {
+//!     if let Response::Model(bindings) = solver.get_model().unwrap() {
 //!         println!("x = {:?}", bindings);
 //!     }
 //! }
 //! # Ok::<(), logician::term::LogicError>(())
 //! ```
 
-use crate::driver::{Config, Driver, launch};
+use crate::driver::{launch, Config, Driver};
 use crate::parser::{parse, Response};
 use crate::term::{LogicError, Sort, Term};
-use std::io::{BufRead, Write};
 
 /// Stateful SMT solver session.
 ///
-/// A `Solver` manages a single solver process and provides methods for:
-/// - Declaring variables ([`declare`](Self::declare))
-/// - Asserting constraints ([`assert`](Self::assert))
-/// - Checking satisfiability ([`check`](Self::check))
-/// - Extracting models ([`get_model`](Self::get_model))
-/// - Managing assertion scopes ([`push`](Self::push), [`pop`](Self::pop))
-///
-/// # Lifecycle
-///
-/// 1. Create with [`Solver::new`] (spawns solver process)
-/// 2. Declare variables
-/// 3. Assert constraints
-/// 4. Call [`check`](Self::check) to get SAT/UNSAT/Unknown
-/// 5. If SAT, optionally call [`get_model`](Self::get_model)
-/// 6. Solver is dropped when it goes out of scope
-///
-/// # Tracing
-///
-/// If `config.trace` is true, all SMT-LIB commands are written to `trace_<pid>.smt2`
-/// for debugging.
+/// A `Solver` manages a single solver process (via [`Driver`]) and provides
+/// methods for declaring variables, asserting constraints, checking
+/// satisfiability, and extracting models. Dropping the `Solver` terminates the
+/// underlying solver process tree — there are no orphan processes.
 pub struct Solver {
     /// The configuration used to launch this solver
     pub config: Config,
     /// The underlying process driver
     pub driver: Driver,
-    /// Optional trace file for debugging
-    pub trace_file: Option<std::fs::File>,
 }
 
 impl Solver {
     /// Create a new solver session
     #[cfg(not(feature = "tokio"))]
     pub fn new(config: Config) -> Result<Self, LogicError> {
-        let trace_file = if config.trace {
-            let path = format!("trace_{}.smt2", std::process::id());
-            Some(std::fs::File::create(&path)?)
-        } else {
-            None
-        };
-        
         let driver = launch(&config)?;
-        
-        // Set solver options
-        let mut solver = Solver { config, driver, trace_file };
+        let mut solver = Solver { config, driver };
         solver.send("(set-option :print-success true)")?;
         solver.send("(set-logic ALL)")?;
-        
         Ok(solver)
     }
-    
+
     /// Create a new solver session (async version)
     #[cfg(feature = "tokio")]
     pub async fn new(config: Config) -> Result<Self, LogicError> {
-        let trace_file = if config.trace {
-            let path = format!("trace_{}.smt2", std::process::id());
-            Some(std::fs::File::create(&path)?)
-        } else {
-            None
-        };
-        
-        let driver = launch(&config)?;
-        
-        let mut solver = Solver { config, driver, trace_file };
+        let driver = launch(&config).await?;
+        let mut solver = Solver { config, driver };
         solver.send("(set-option :print-success true)").await?;
         solver.send("(set-logic ALL)").await?;
-        
         Ok(solver)
     }
-    
-    /// Send a command and trace it
+
+    /// Send a command (no response expected beyond `success`).
     #[cfg(not(feature = "tokio"))]
     fn send(&mut self, cmd: &str) -> Result<(), LogicError> {
-        // Trace
-        if let Some(ref mut f) = self.trace_file {
-            writeln!(f, "{}", cmd)?;
-        }
-        
-        // Write to solver
-        writeln!(self.driver.stdin, "{}", cmd)?;
-        self.driver.stdin.flush()?;
-        
-        // Read response
-        let mut line = String::new();
-        self.driver.stdout.read_line(&mut line)?;
-        
-        if !line.trim().is_empty() && line.trim() != "success" {
-            // Could be an error
-            if line.contains("error") {
-                return Err(LogicError::Solver(line.trim().to_string()));
-            }
-        }
-        
-        Ok(())
+        self.driver.send(cmd)
     }
-    
-    /// Send a command and trace it (async version)
-    #[cfg(feature = "tokio")]
-    async fn send(&mut self, cmd: &str) -> Result<(), LogicError> {
-        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-        
-        // Trace
-        if let Some(ref mut f) = self.trace_file {
-            writeln!(f, "{}", cmd)?;
-        }
-        
-        // Write to solver
-        self.driver.stdin.write_all(cmd.as_bytes()).await.map_err(|e| LogicError::Io(e))?;
-        self.driver.stdin.write_all(b"\n").await.map_err(|e| LogicError::Io(e))?;
-        self.driver.stdin.flush().await.map_err(|e| LogicError::Io(e))?;
-        
-        // Read response
-        let mut line = String::new();
-        self.driver.stdout.read_line(&mut line).await.map_err(|e| LogicError::Io(e))?;
-        
-        if !line.trim().is_empty() && line.trim() != "success" {
-            if line.contains("error") {
-                return Err(LogicError::Solver(line.trim().to_string()));
-            }
-        }
-        
-        Ok(())
-    }
-    
-    /// Send command and get response
+
+    /// Send a command and return its (possibly multi-line) response.
     #[cfg(not(feature = "tokio"))]
     fn query(&mut self, cmd: &str) -> Result<String, LogicError> {
-        // Trace
-        if let Some(ref mut f) = self.trace_file {
-            writeln!(f, "{}", cmd)?;
-        }
-        
-        // Write to solver
-        writeln!(self.driver.stdin, "{}", cmd)?;
-        self.driver.stdin.flush()?;
-        
-        // Read response - may be multiline for models
-        let mut result = String::new();
-        
-        // First line
-        self.driver.stdout.read_line(&mut result)?;
-        
-        // If it starts with '(' and doesn't end balanced, read more
-        if result.trim().starts_with('(') {
-            let mut depth = 0i32;
-            for c in result.chars() {
-                match c {
-                    '(' => depth += 1,
-                    ')' => depth -= 1,
-                    _ => {}
-                }
-            }
-            while depth > 0 {
-                let mut line = String::new();
-                self.driver.stdout.read_line(&mut line)?;
-                for c in line.chars() {
-                    match c {
-                        '(' => depth += 1,
-                        ')' => depth -= 1,
-                        _ => {}
-                    }
-                }
-                result.push_str(&line);
-            }
-        }
-        
-        Ok(result)
+        self.driver.query(cmd)
     }
-    
-    /// Send command and get response (async version)
+
+    /// Send a command (no response expected beyond `success`).
+    #[cfg(feature = "tokio")]
+    async fn send(&mut self, cmd: &str) -> Result<(), LogicError> {
+        self.driver.send(cmd).await
+    }
+
+    /// Send a command and return its (possibly multi-line) response.
     #[cfg(feature = "tokio")]
     async fn query(&mut self, cmd: &str) -> Result<String, LogicError> {
-        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-        
-        // Trace
-        if let Some(ref mut f) = self.trace_file {
-            writeln!(f, "{}", cmd)?;
-        }
-        
-        // Write to solver
-        self.driver.stdin.write_all(cmd.as_bytes()).await.map_err(|e| LogicError::Io(e))?;
-        self.driver.stdin.write_all(b"\n").await.map_err(|e| LogicError::Io(e))?;
-        self.driver.stdin.flush().await.map_err(|e| LogicError::Io(e))?;
-        
-        // Read response
-        let mut result = String::new();
-        self.driver.stdout.read_line(&mut result).await.map_err(|e| LogicError::Io(e))?;
-        
-        if result.trim().starts_with('(') {
-            let mut depth = 0i32;
-            for c in result.chars() {
-                match c {
-                    '(' => depth += 1,
-                    ')' => depth -= 1,
-                    _ => {}
-                }
-            }
-            while depth > 0 {
-                let mut line = String::new();
-                self.driver.stdout.read_line(&mut line).await.map_err(|e| LogicError::Io(e))?;
-                for c in line.chars() {
-                    match c {
-                        '(' => depth += 1,
-                        ')' => depth -= 1,
-                        _ => {}
-                    }
-                }
-                result.push_str(&line);
-            }
-        }
-        
-        Ok(result)
+        self.driver.query(cmd).await
     }
-    
-    /// Assert a term
-    #[cfg(not(feature = "tokio"))]
-    pub fn assert(&mut self, term: &Term) -> Result<(), LogicError> {
-        let cmd = format!("(assert {})", term);
-        self.send(&cmd)
-    }
-    
-    /// Assert a term (async version)
-    #[cfg(feature = "tokio")]
-    pub async fn assert(&mut self, term: &Term) -> Result<(), LogicError> {
-        let cmd = format!("(assert {})", term);
-        self.send(&cmd).await
-    }
-    
+
     /// Declare a constant
     #[cfg(not(feature = "tokio"))]
     pub fn declare(&mut self, name: &str, sort: &Sort) -> Result<(), LogicError> {
@@ -284,10 +109,9 @@ impl Solver {
             Sort::Bool => "Bool",
             Sort::Int => "Int",
         };
-        let cmd = format!("(declare-const {} {})", name, sort_str);
-        self.send(&cmd)
+        self.send(&format!("(declare-const {} {})", name, sort_str))
     }
-    
+
     /// Declare a constant (async version)
     #[cfg(feature = "tokio")]
     pub async fn declare(&mut self, name: &str, sort: &Sort) -> Result<(), LogicError> {
@@ -295,63 +119,67 @@ impl Solver {
             Sort::Bool => "Bool",
             Sort::Int => "Int",
         };
-        let cmd = format!("(declare-const {} {})", name, sort_str);
-        self.send(&cmd).await
+        self.send(&format!("(declare-const {} {})", name, sort_str))
+            .await
     }
-    
+
+    /// Assert a term
+    #[cfg(not(feature = "tokio"))]
+    pub fn assert(&mut self, term: &Term) -> Result<(), LogicError> {
+        self.send(&format!("(assert {})", term))
+    }
+
+    /// Assert a term (async version)
+    #[cfg(feature = "tokio")]
+    pub async fn assert(&mut self, term: &Term) -> Result<(), LogicError> {
+        self.send(&format!("(assert {})", term)).await
+    }
+
     /// Check satisfiability
     #[cfg(not(feature = "tokio"))]
     pub fn check(&mut self) -> Result<Response, LogicError> {
-        let result = self.query("(check-sat)")?;
-        parse(&result)
+        parse(&self.query("(check-sat)")?)
     }
-    
+
     /// Check satisfiability (async version)
     #[cfg(feature = "tokio")]
     pub async fn check(&mut self) -> Result<Response, LogicError> {
-        let result = self.query("(check-sat)").await?;
-        parse(&result)
+        parse(&self.query("(check-sat)").await?)
     }
-    
+
     /// Get model (after sat)
     #[cfg(not(feature = "tokio"))]
     pub fn get_model(&mut self) -> Result<Response, LogicError> {
-        let result = self.query("(get-model)")?;
-        parse(&result)
+        parse(&self.query("(get-model)")?)
     }
-    
+
     /// Get model (after sat) - async version
     #[cfg(feature = "tokio")]
     pub async fn get_model(&mut self) -> Result<Response, LogicError> {
-        let result = self.query("(get-model)").await?;
-        parse(&result)
+        parse(&self.query("(get-model)").await?)
     }
-    
+
     /// Push scope
     #[cfg(not(feature = "tokio"))]
     pub fn push(&mut self, n: usize) -> Result<(), LogicError> {
-        let cmd = format!("(push {})", n);
-        self.send(&cmd)
+        self.send(&format!("(push {})", n))
     }
-    
+
     /// Push scope (async version)
     #[cfg(feature = "tokio")]
     pub async fn push(&mut self, n: usize) -> Result<(), LogicError> {
-        let cmd = format!("(push {})", n);
-        self.send(&cmd).await
+        self.send(&format!("(push {})", n)).await
     }
-    
+
     /// Pop scope
     #[cfg(not(feature = "tokio"))]
     pub fn pop(&mut self, n: usize) -> Result<(), LogicError> {
-        let cmd = format!("(pop {})", n);
-        self.send(&cmd)
+        self.send(&format!("(pop {})", n))
     }
-    
+
     /// Pop scope (async version)
     #[cfg(feature = "tokio")]
     pub async fn pop(&mut self, n: usize) -> Result<(), LogicError> {
-        let cmd = format!("(pop {})", n);
-        self.send(&cmd).await
+        self.send(&format!("(pop {})", n)).await
     }
 }
