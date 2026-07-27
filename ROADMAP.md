@@ -34,22 +34,24 @@ These are permanent architectural decisions, not "not yet" features:
 
 ## Version Roadmap
 
-### v0.1.0 — Current (Foundation)
+### v0.1.0 — Initial Release (Foundation)
 
 ✅ Core Term API (Bool, Int, And, Or, Not, Eq, Ite, Implies)  
 ✅ Single solver driver with timeout  
 ✅ Multi-solver fallback  
 ✅ Runtime invariant system  
-✅ Property-based testing (proptest)  
-✅ 90%+ test coverage  
+✅ Property-based testing (proptest)
 
-### v0.2.0 — Polish (Planned)
+### v0.2.0 — Parser Hardening, Scope Management, CI Matrix ✅
 
-- [ ] Real arithmetic (`Sort::Real`) for basic LRA problems
-- [ ] Distinct (`Term::distinct(terms)`) — all-different constraint
-- [ ] Let bindings (`Term::let_in(name, value, body)`) — expression sharing
-- [ ] Push/pop scope validation (track depth, panic on negative)
-- [ ] Model parsing improvements (handle more Z3/CVC5 output quirks)
+✅ S-expression tokenizer with position tracking and error recovery  
+✅ Structured response types (`Response::Eval`, `Response::GetInfo`, `#[non_exhaustive]`)  
+✅ Push/pop scope tracking with underflow validation  
+✅ Unsat core support (`assert_named`, `get_unsat_core`)  
+✅ Cross-solver CI matrix (Z3×3 OSes, CVC5, Yices2)  
+✅ Architecture ADR (runtime sort validation)  
+✅ Error quality audit (no unwrap in production)  
+✅ Chinese translations (README.zh-CN, README.zh-TW)
 
 ### v0.3.0 — Hardening (Planned)
 
@@ -57,6 +59,7 @@ These are permanent architectural decisions, not "not yet" features:
 - [ ] Incremental assertion replay optimization
 - [ ] Trace file replay tool (`logician-replay trace.smt2`)
 - [ ] Better error messages (show offending term in sort errors)
+- [ ] API freeze preparation
 
 ### v1.0.0 — Stable (Target)
 
