@@ -83,7 +83,7 @@ Logician includes several built-in security features:
 
 - **Memory Safety**: Built with safe Rust
 - **Process Isolation**: SMT solvers run as isolated subprocesses
-- **Watchdog Protection**: Automatic timeout and process tree termination via `kill_tree`
+- **Watchdog Protection**: Automatic timeout and process tree termination
 - **No Unsafe Code**: Pure safe Rust in all paths
 
 ## Contact

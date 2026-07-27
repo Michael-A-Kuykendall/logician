@@ -5,7 +5,11 @@
 <h1 align="center">Logician</h1>
 
 <p align="center">
-  <strong>Type-safe SMT solver driver for Rust</strong>
+  <strong>Sort-checked SMT solver driver for Rust</strong>
+</p>
+
+<p align="center">
+  <a href="README.zh-CN.md">简体中文</a> • <a href="README.zh-TW.md">繁體中文</a> • <a href="README.md">English</a>
 </p>
 
 <p align="center">
@@ -162,7 +166,7 @@ let config = Config {
 };
 ```
 
-Uses `kill_tree` to terminate the solver **and all child processes**.
+Terminates the solver process tree via PID-safe polling and kill.
 
 ### SMT-LIB Tracing
 
@@ -206,7 +210,7 @@ compile time. The trade-off is simplicity over compile-time guarantees.
 ### What Logician Is
 
 - A driver for SMT solvers via subprocess (stdin/stdout)
-- Type-safe term construction with sort enforcement
+- Sort-checked term construction with sort enforcement
 - Multi-solver orchestration with automatic fallback
 - Process lifecycle management with timeout handling
 
@@ -243,7 +247,7 @@ cargo test -- --test-threads=1
 cargo tarpaulin --out Html
 ```
 
-**Current: 24 tests, 90%+ coverage.**
+**Current: 26 tests (default) / 18 tests (tokio).**
 
 ---
 

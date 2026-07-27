@@ -38,8 +38,11 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-features -- -D warnings
       
-      - name: Test
+      - name: Test (default)
         run: cargo test -- --test-threads=1
+
+      - name: Test (tokio)
+        run: cargo test --features tokio -- --test-threads=1
       
       - name: Doc
         run: cargo doc --no-deps

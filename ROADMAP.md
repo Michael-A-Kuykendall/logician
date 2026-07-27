@@ -4,7 +4,7 @@
 
 ### What Logician Does (v0.1)
 
-- **Term API**: Type-safe construction of Bool and Int terms
+- **Term API**: Sort-checked construction of Bool and Int terms
 - **Sort Enforcement**: Runtime invariants that panic on misuse
 - **Solver Communication**: stdin/stdout subprocess driver
 - **Multi-Solver Fallback**: Try Z3, then CVC5, etc.
@@ -27,7 +27,7 @@ These are permanent architectural decisions, not "not yet" features:
 1. **Free forever** — MIT licensed, no paid tiers, no feature-gating
 2. **Stable API** — After 1.0, breaking changes only in major versions
 3. **Subprocess only** — No C++ toolchain required, ever
-4. **Type-safe terms** — Sort mismatches panic immediately with clear messages
+4. **Sort-checked terms** — Sort mismatches panic immediately with clear messages
 5. **Clean termination** — No orphan solver processes
 
 ---

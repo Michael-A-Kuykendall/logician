@@ -60,7 +60,7 @@ If a contribution is discussed and approved:
 
 Any accepted work must align with:
 
-- **Type Safety First**: Compile-time sort enforcement via the Term API
+- **Sort Safety First**: Runtime sort enforcement via the Term API
 - **Runtime Invariants**: All assumptions tracked and auditable
 - **Production Ready**: Comprehensive error handling and testing
 - **Free Forever**: No features that could lead to paid tiers
