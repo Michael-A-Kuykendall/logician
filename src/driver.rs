@@ -6,7 +6,7 @@
 //!
 //! - **Process isolation** - Solvers run as separate processes
 //! - **Watchdog timeout** - Automatically kills hung solvers, scoped to each query
-//! - **Process tree cleanup** - Uses `kill_tree` to terminate child processes
+//! - **Process tree cleanup** - Terminates child processes via PID-safe kill (cross-platform)
 //! - **cfg-gated async** - Supports both sync (std::io) and async (tokio) modes
 //! - **No orphan processes** - `Driver` terminates the solver tree on drop
 //!

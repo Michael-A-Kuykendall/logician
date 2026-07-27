@@ -1,6 +1,6 @@
 //! # Logician
 //!
-//! A type-safe SMT solver driver for Rust.
+//! A sort-checked SMT solver driver for Rust.
 //!
 //! Logician provides a fluent API for building logical formulas and communicating
 //! with SMT (Satisfiability Modulo Theories) solvers like Z3 and CVC5. Unlike
@@ -38,7 +38,7 @@
 //!
 //! ## Modules
 //!
-//! - [`term`] - Type-safe Term AST with sort inference and fluent builders
+//! - [`term`] - Sort-checked Term AST with sort inference and fluent builders
 //! - [`solver`] - Stateful SMT solver session management
 //! - [`parser`] - S-expression parser for solver output
 //! - [`driver`] - Process management with watchdog timeout

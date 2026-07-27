@@ -1,4 +1,4 @@
-//! # Type-Safe Term AST with Sort Inference
+//! # Sort-Checked Term AST with Sort Inference
 //!
 //! This module provides the core data structures for building SMT formulas:
 //!
