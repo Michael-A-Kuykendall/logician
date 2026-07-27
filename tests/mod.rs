@@ -390,6 +390,7 @@ fn c_serializer_contract() {
 // # Spell: DriverDefinition proofs
 // $ prove: Driver launchable -> test:p_driver_construct (proptest)
 
+#[cfg(not(feature = "tokio"))]
 proptest! {
     #[test]
     fn p_driver_construct(
@@ -466,6 +467,24 @@ fn hang_config(timeout: std::time::Duration) -> Config {
             "100".into(),
             "127.0.0.1".into(),
         ],
+    );
+    #[cfg(not(windows))]
+    let (program, args) = ("sleep".into(), vec!["100".into()]);
+    Config {
+        program,
+        args,
+        timeout,
+        trace: false,
+    }
+}
+
+// Like `hang_config`, but produces no stdout so a read blocks until the
+// watchdog timeout fires (used to exercise the async timeout path).
+fn silent_hang_config(timeout: std::time::Duration) -> Config {
+    #[cfg(windows)]
+    let (program, args) = (
+        "cmd".into(),
+        vec!["/c".into(), "ping -n 100 127.0.0.1 >nul 2>nul".into()],
     );
     #[cfg(not(windows))]
     let (program, args) = ("sleep".into(), vec!["100".into()]);
