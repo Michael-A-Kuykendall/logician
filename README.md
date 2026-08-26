@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://crates.io/crates/logician"><img src="https://img.shields.io/crates/v/logician.svg" alt="crates.io"></a>
+  <a href="https://crates.io/crates/logician"><img src="https://img.shields.io/crates/v/logician.svg" alt="crates.io"></a> <a href="https://translifeline.org/"><img src="https://pride-badges.pony.workers.dev/static/v1?label=trans%20rights&stripeWidth=6&stripeColors=5BCEFA,F5A9B8,FFFFFF,F5A9B8,5BCEFA" alt="trans rights"></a> <a href="https://www.thetrevorproject.org/"><img src="https://pride-badges.pony.workers.dev/static/v1?label=lgbtq%2B%20friendly&stripeWidth=6&stripeColors=E40303,FF8C00,FFED00,008026,24408E,732982" alt="lgbtq+ friendly"></a>
   <a href="https://docs.rs/logician"><img src="https://docs.rs/logician/badge.svg" alt="Documentation"></a>
   <a href="https://github.com/Michael-A-Kuykendall/logician/actions"><img src="https://github.com/Michael-A-Kuykendall/logician/workflows/CI/badge.svg" alt="CI Status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
@@ -241,9 +241,6 @@ Any SMT-LIB 2 compliant solver should work.
 
 ```bash
 # Single-threaded (required for global invariant state)
-
-[![Trans rights](https://pride-badges.pony.workers.dev/static/v1?label=trans%20rights&stripeWidth=6&stripeColors=5BCEFA,F5A9B8,FFFFFF,F5A9B8,5BCEFA)](https://translifeline.org/)
-[![LGBTQ+ friendly](https://pride-badges.pony.workers.dev/static/v1?label=lgbtq%2B%20friendly&stripeWidth=6&stripeColors=E40303,FF8C00,FFED00,008026,24408E,732982)](https://www.thetrevorproject.org/)
 
 cargo test -- --test-threads=1
 
